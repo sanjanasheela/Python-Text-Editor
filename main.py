@@ -9,33 +9,23 @@ class TextEditor:
         self.window = tk.Tk()
         self.window.title("Python Text Editor")
         self.window.geometry("900x600")
-
         self.window.configure(bg="black")
 
-        self.main_frame = tk.Frame(self.window)
-        self.main_frame.pack(fill="both", expand=True)
+        # Activity Bar (left side)
+        self.activity_bar = ActivityBar(self)
 
-        # Inside main_frame:
-        self.activity_bar_frame = tk.Frame(self.main_frame, width=80, bg="white")
-        self.activity_bar_frame.pack(side="left", fill="y")
-
-        self.notebook = ttk.Notebook(self.main_frame)
+        # Notebook for tabs
+        self.notebook = ttk.Notebook(self.window)
         self.notebook.pack(side="right", fill="both", expand=True)
 
         # Add first new tab on start
         self.new_text_file()
 
-
-
         # Bind tab changed event to update line numbers for active tab
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
 
-
         # Menu Bar
         self.menu_bar = MenuBar(self)
-
-        # activity Bar
-
 
         self.window.mainloop()
 
@@ -52,8 +42,29 @@ class TextEditor:
 
         text_area.focus_set()
 
-        # Scrollbar linked to text_area and line_numbers
-        scrollbar = tk.Scrollbar(text_area)
+        from tkinter import ttk
+
+        # Create a custom style for the scrollbar
+        style = ttk.Style()
+        style.theme_use('default')
+
+        style.element_create('Custom.Vertical.Scrollbar.trough', 'from', 'clam')
+        style.layout('Custom.Vertical.TScrollbar', [
+            ('Vertical.Scrollbar.trough',
+             {'children': [('Vertical.Scrollbar.thumb', {'unit': '1', 'sticky': 'nswe'})],
+              'sticky': 'ns'}),
+        ])
+
+        style.configure('Custom.Vertical.TScrollbar',
+                        troughcolor='black',
+                        background='white',  # thumb color
+                        arrowcolor='white',  # arrows (if shown)
+                        bordercolor='black',
+                        lightcolor='black',
+                        darkcolor='black')
+
+        # Apply the scrollbar with this style
+        scrollbar = ttk.Scrollbar(text_area, style='Custom.Vertical.TScrollbar')
         scrollbar.pack(side="right", fill="y")
         text_area.config(yscrollcommand=scrollbar.set)
         scrollbar.config(command=self._on_scroll(text_area, line_numbers))
