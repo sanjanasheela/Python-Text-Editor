@@ -8,16 +8,19 @@ from pygments.styles import get_style_by_name
 import keyword
 import re
 import builtins
-
+import subprocess
+import os
 
 class TextEditor:
 
-    def __init__(self):
-        self.window = tk.Tk()
+    def __init__(self,master=None):
+        self.window = tk.Toplevel(master) if master else tk.Tk()
         self.window.title("Python Text Editor")
         self.window.geometry("900x600")
         self.window.configure(bg="black")
 
+        self.path = os.getcwd()
+        print(self.path)
         # Activity Bar (left side)
         self.activity_bar = ActivityBar(self)
 
@@ -26,20 +29,35 @@ class TextEditor:
         self.notebook.pack(side="right", fill="both", expand=True)
 
         # Add first new tab on start
-        self.new_text_file()
+        self.new_text_file(self.path)
 
         # Bind tab changed event to update line numbers for active tab
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
 
         # Menu Bar
         self.menu_bar = MenuBar(self)
+        self.menu_bar.bind_shortcuts()
 
-        self.window.mainloop()
+        self.multi_selections = []  # list of (start_index, end_index)
 
 
-    def create_editor_tab(self, content="", title="Untitled"):
+        if not master:
+            self.window.mainloop()
+
+
+
+
+    def create_editor_tab(self, content="", title="Untitled",path=""):
         frame = tk.Frame(self.notebook,bg="black")
+        frame.path = path
+        print("h")
+        print(path)
 
+        # Close button on top-right inside the frame
+        # close_btn = tk.Button(frame, text="✕", command=lambda: self.close_tab(frame),
+        #                       bg="black", fg="white", bd=0, padx=5, pady=2,
+        #                       font=("Arial", 12, "bold"))
+        # close_btn.pack(side="top", anchor="ne", padx=2, pady=2)
         # Line numbers text widget
         line_numbers = tk.Text(frame, width=4, padx=4,bd=0,highlightthickness=0, takefocus=0, border=0, background='black',fg='white', state='disabled', wrap='none')
         line_numbers.pack(side="left", fill="y")
@@ -48,39 +66,7 @@ class TextEditor:
         text_area = tk.Text(frame, wrap="none", undo=True, bg="black", fg="white",insertbackground="white")
         text_area.pack(side="right", fill="both", expand=True)
 
-        # text_area.focus_set()
 
-        from tkinter import ttk
-
-        # Create a custom style for the scrollbar
-        style = ttk.Style()
-        style.theme_use('default')
-
-        style.element_create('Custom.Vertical.Scrollbar.trough', 'from', 'clam')
-        style.layout('Custom.Vertical.TScrollbar', [
-            ('Vertical.Scrollbar.trough',
-             {'children': [('Vertical.Scrollbar.thumb', {'unit': '1', 'sticky': 'nswe'})],
-              'sticky': 'ns'}),
-        ])
-
-        style.configure('Custom.Vertical.TScrollbar',
-                        troughcolor='black',
-                        background='white',  # thumb color
-                        arrowcolor='white',  # arrows (if shown)
-                        bordercolor='black',
-                        lightcolor='black',
-                        darkcolor='black')
-
-        style.element_create('Custom.Horizontal.Scrollbar.trough', 'from', 'clam')
-        style.layout('Custom.Horizontal.TScrollbar', [
-            ('Horizontal.Scrollbar.trough',
-             {'children': [('Horizontal.Scrollbar.thumb', {'unit': '1', 'sticky': 'we'})],
-              'sticky': 'we'}),
-        ])
-        style.configure('Custom.Horizontal.TScrollbar',
-                        troughcolor='black',
-                        background='white',
-                        arrowcolor='white')
 
         # Apply the scrollbar with this style
         scrollbar = ttk.Scrollbar(text_area, style='Custom.Vertical.TScrollbar')
@@ -96,6 +82,7 @@ class TextEditor:
 
         # Insert content if any
         if content:
+
             text_area.insert(tk.END, content)
 
         # Configure syntax highlighting
@@ -105,9 +92,6 @@ class TextEditor:
         for ttype, n in style:
             if n['color']:
                 text_area.tag_configure(str(ttype), foreground=f"#{n['color']}")
-
-        import re
-        import keyword
 
         def highlight(event=None):
             text = text_area.get("1.0", tk.END)
@@ -140,6 +124,13 @@ class TextEditor:
                     end = f"1.0 + {match.end()} chars"
                     text_area.tag_add("comment", start, end)\
 
+            block_comment_pattern = r'("""(.|\n)*?"""|\'\'\'(.|\n)*?\'\'\')'
+            for match in re.finditer(block_comment_pattern, text):
+                start_idx, end_idx = match.start(), match.end()
+                start = f"1.0 + {start_idx} chars"
+                end = f"1.0 + {end_idx} chars"
+                text_area.tag_add("comment", start, end)
+
             builtin_funcs = [name for name in dir(builtins) if callable(getattr(builtins, name))]
             for func in builtin_funcs:
                 for match in re.finditer(rf"\b{func}\b", text):
@@ -170,6 +161,8 @@ class TextEditor:
                     end = f"1.0 + {match.end()} chars"
                     text_area.tag_add("function", start, end)
 
+
+
             # Configure tags with colors
             text_area.tag_configure("keyword", foreground="blue")
             text_area.tag_configure("function", foreground="yellow")
@@ -177,10 +170,19 @@ class TextEditor:
             text_area.tag_configure("comment", foreground="green")
 
         # Bind highlighting
-        text_area.bind("<KeyRelease>", highlight)
-        text_area.bind("<KeyRelease>", lambda e: [self.update_line_numbers(text_area, line_numbers), highlight()])
-        text_area.bind("<MouseWheel>", lambda e: self.update_line_numbers(text_area, line_numbers))
-        text_area.bind("<ButtonRelease-1>", lambda e: self.update_line_numbers(text_area, line_numbers))
+            def on_text_change(event):
+                    text_widget = event.widget  # the Text widget that triggered this
+                    if text_widget.edit_modified():
+                        text_widget.edit_modified(False)  # reset the modified flag
+
+                        # Now call your update functions:
+                        self.update_line_numbers(text_widget, line_numbers)
+                        highlight()
+
+            text_area.bind("<<Modified>>", on_text_change)
+            text_area.bind("<MouseWheel>", lambda e: self.update_line_numbers(text_area, line_numbers))
+            text_area.bind("<ButtonRelease-1>", lambda e: self.update_line_numbers(text_area, line_numbers))
+
 
         # Initial update
         self.update_line_numbers(text_area, line_numbers)
@@ -188,16 +190,66 @@ class TextEditor:
 
         # Add tab
         self.notebook.add(frame, text=title)
-        self.notebook.select(frame)
-  
-        return frame, text_area, line_numbers
-    
 
+        self.notebook.select(frame)
+        self.window.title(f"Python Text Editor - {title}")
+        self.window.update()
+
+
+        return frame, text_area, line_numbers
+
+    def get_active_text_widget(self):
+        current_tab = self.notebook.nametowidget(self.notebook.select())
+        for child in current_tab.winfo_children():
+            if isinstance(child, tk.Text) and child.cget("state") != "disabled":
+                return child
+        return None
+
+    def new_text_file(self,event=None):
+        self.create_editor_tab()
+
+    def open_new_window(self,event=None):
+        # Opens a brand new TextEditor window (independent)
+        TextEditor(master=self.window)
+
+    def open_file(self,event=None):
+        file_path = filedialog.askopenfilename(defaultextension=".txt",
+                                                           filetypes=[("All files", "*.*"),("Text files", "*.txt")])
+        if file_path:
+            with open(file_path, 'r') as file:
+                content = file.read()
+            filename = file_path.split("/")[-1]
+            self.create_editor_tab(content=content, title=filename,path=file_path)
+
+
+
+    def save_as_file(self,event=None):
+        frame, text_area, line_numbers = self.get_current_tab_widgets()
+        if not text_area:
+            return
+        file_path = filedialog.asksaveasfilename(defaultextension=".txt",
+                                                 filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
+        if file_path:
+            with open(file_path, "w") as file_handler:
+                file_handler.write(text_area.get(1.0, tk.END))
+            filename = file_path.split("/")[-1]
+            tab_index = self.notebook.index(self.notebook.select())
+            self.notebook.tab(tab_index, text=filename)
+            self.window.title(f"Python Text Editor - {filename}")
+            frame.path = file_path
+
+    def close_tab(self, frame):
+        self.notebook.forget(frame)
     def _on_scroll(self, text_widget, line_numbers_widget):
         def on_scroll(*args):
             text_widget.yview(*args)
             line_numbers_widget.yview(*args)
         return on_scroll
+
+    def on_tab_changed(self, event):
+        frame, text_area, line_numbers = self.get_current_tab_widgets()
+        if text_area and line_numbers:
+            self.update_line_numbers(text_area, line_numbers)
 
     def update_line_numbers(self, text_widget, line_numbers_widget):
         line_numbers_widget.config(state='normal')
@@ -218,40 +270,10 @@ class TextEditor:
             return None, None, None
         return frame, children[1], children[0]
 
-    def new_text_file(self):
-        self.create_editor_tab()
 
-    def open_file(self):
-        file_path = filedialog.askopenfilename(defaultextension=".txt",filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
-        if file_path:
-            with open(file_path, 'r') as file:
-                content = file.read()
-            filename = file_path.split("/")[-1]
-            self.create_editor_tab(content=content, title=filename)
-
-    def save_as_file(self):
-        frame, text_area, line_numbers = self.get_current_tab_widgets()
-        if not text_area:
-            return
-        file_path = filedialog.asksaveasfilename(defaultextension=".txt",filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
-        if file_path:
-            with open(file_path, "w") as file_handler:
-                file_handler.write(text_area.get(1.0, tk.END))
-            filename = file_path.split("/")[-1]
-            tab_index = self.notebook.index(self.notebook.select())
-            self.notebook.tab(tab_index, text=filename)
-            self.window.title(f"Python Text Editor - {filename}")
-
-    def open_new_window(self):
-        # Opens a brand new TextEditor window (independent)
-        TextEditor()
-
-    def on_tab_changed(self, event):
-        frame, text_area, line_numbers = self.get_current_tab_widgets()
-        if text_area and line_numbers:
-            self.update_line_numbers(text_area, line_numbers)
 
 if __name__ == "__main__":
     TextEditor()
+
 
 
