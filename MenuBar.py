@@ -1,5 +1,8 @@
 import tkinter as tk
 import subprocess
+# from shell import CShellConsole
+
+
 class MenuBar:
     def __init__(self, parent):
         self.parent = parent
@@ -80,7 +83,10 @@ class MenuBar:
         self.run_menu.add_command(label="Run Code", command=self.run_code)
         # self.run_menu.add_command(label="Run File", command=self.run_file)
 
-        self.menu.add_cascade(label="Terminal", menu=tk.Menu(self.menu, tearoff=0))
+        self.selection_menu = tk.Menu(self.menu, tearoff=0)
+        self.menu.add_cascade(label="Terminal", menu=self.selection_menu)
+        # self.selection_menu.add_command(label="open terminal",command=self.parent.open_cshell_tab)
+
         self.menu.add_cascade(label="Help", menu=tk.Menu(self.menu, tearoff=0))
 
 

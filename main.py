@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 from MenuBar import MenuBar  # your MenuBar code stays the same
 from ActivityBar import ActivityBar
+# from shell import CShellConsole
 from pygments import lex
 from pygments.lexers import PythonLexer
 from pygments.styles import get_style_by_name
@@ -44,8 +45,10 @@ class TextEditor:
         if not master:
             self.window.mainloop()
 
-
-
+    # def open_cshell_tab(self):
+    #     cshell_tab = CShellConsole(self.notebook, shell_path="/home/sanjanasheela/Documents/OSN/Cshell")
+    #     self.notebook.add(cshell_tab, text="CShell")
+    #     self.notebook.select(cshell_tab)
 
     def create_editor_tab(self, content="", title="Untitled",path=""):
         frame = tk.Frame(self.notebook,bg="black")

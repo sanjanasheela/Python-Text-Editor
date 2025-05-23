@@ -24,6 +24,7 @@ class ActivityBar:
         self.create_button_with_frame("Project Manager", self.create_project_manager_frame)
         self.create_button_with_frame("Search", self.create_search_frame)
         self.create_button_with_frame("Settings", self.create_settings_frame)
+        self.create_button_with_frame("version control", self.create_git_frame)
 
     def create_button_with_frame(self, name, frame_creator):
         # Button in activity bar
@@ -119,4 +120,9 @@ class ActivityBar:
     def create_settings_frame(self):
         frame = tk.Frame(self.parent.window, width=200, bg="black")
         tk.Label(frame, text="Settings Panel", fg="white", bg="black").pack(padx=10, pady=10)
+        return frame
+
+    def create_git_frame(self):
+        frame = tk.Frame(self.parent.window, width=200, bg="black")
+        tk.Label(frame, text="Version Control", fg="white", bg="black").pack(padx=10, pady=10)
         return frame
